@@ -8,8 +8,11 @@ Created on Mon Aug  7 20:44:49 2023
 
 
 import io
+import re
+import sqlite3
 from functools import cache
 from pathlib import Path
+from typing import Any
 from zipfile import ZipFile
 
 import pandas as pd
@@ -17,10 +20,8 @@ import requests
 from pandas import DataFrame
 
 from statcan.src.core.constants import MAP_READ_CAN, MAP_READ_CAN_SPC
-from thesis.src.core.pull import (pull_by_series_id, pull_can_capital,
-                                  pull_can_capital_former)
-from thesis.src.core.transform import (transform_stockpile, transform_sum,
-                                       transform_year_sum)
+from statcan.src.foreign.funcs import pull_by_series_id
+from stats.src.common.transform import transform_year_mean
 
 
 @cache
@@ -235,6 +236,177 @@ def read_can(archive_id: int) -> DataFrame:
     return pd.read_csv(**kwargs)
 
 
+def pull_can_capital(df: DataFrame) -> list[str]:
+    """
+    Retrieves Series IDs from Statistics Canada -- Fixed Assets Tables
+    """
+    {
+        "table": "031-0004",
+        "title": "Flows and stocks of fixed non-residential capital, total all industries, by asset, provinces and territories, annual (dollars x 1,000,000)",
+        "file_name": "dataset_can_00310004-eng.zip"
+    }
+    _filter = (
+        (df.iloc[:, 2].str.contains('2007 constant prices')) &
+        (df.iloc[:, 4] == 'Geometric (infinite) end-year net stock') &
+        (df.iloc[:, 5].str.contains('Industrial', flags=re.IGNORECASE))
+    )
+    {
+        "table": "36-10-0238-01 (formerly CANSIM 031-0004)",
+        "title": "Flows and stocks of fixed non-residential capital, total all industries, by asset, provinces and territories, annual (dollars x 1,000,000)"
+    }
+    _filter = (
+        (df.iloc[:, 3].str.contains('2007 constant prices')) &
+        (df.iloc[:, 5] == 'Straight-line end-year net stock') &
+        (df.iloc[:, 6].str.contains('Industrial', flags=re.IGNORECASE))
+    )
+    return sorted(set(df[_filter].loc[:, "VECTOR"]))
+
+
+def pull_can_capital(df: DataFrame, params: tuple[int, str]) -> DataFrame:
+    """
+    WARNING: VERY EXPENSIVE OPERATION !
+    Retrieves Series IDs from Statistics Canada -- Fixed Assets Tables
+
+    Parameters
+    ----------
+    df : DataFrame
+
+    params : tuple[int, str]
+        param : YEAR_BASE : Basic Price Year.
+        param : CATEGORY : Estimate Basis.
+        param : COMPONENT : Search Key Word
+
+    Returns
+    -------
+    DataFrame
+
+    """
+    PATH_SRC = "/home/green-machine/data_science"
+    DBNAME = "capital"
+    stmt = f"""
+    SELECT * FROM {DBNAME}
+    WHERE
+        geo = 'Canada'
+        AND prices LIKE '%{params[0]} constant prices%'
+        AND industry = '{params[1]}'
+        AND category = '{params[2]}'
+        AND component IN {params[-1]}
+    ;
+    """
+    database = Path(PATH_SRC).joinpath(f"{DBNAME}.db")
+    with sqlite3.connect(database) as conn:
+        cursor = conn.cursor()
+        df.to_sql(DBNAME, conn, if_exists="replace", index=True)
+        cursor = conn.execute(stmt)
+        return DataFrame(
+            cursor.fetchall(),
+            columns=("period", "geo", "prices", "industry", "category",
+                     "component", "series_id", "value")
+        )
+
+
+def pull_can_capital_former(df: DataFrame, params: tuple[int, str]) -> DataFrame:
+    """
+    Retrieves Series IDs from Statistics Canada -- Fixed Assets Tables
+
+    Parameters
+    ----------
+    df : DataFrame
+
+    params : tuple[int, str]
+        param : YEAR_BASE : Basic Price Year.
+        param : CATEGORY : Estimate Basis.
+        param : COMPONENT : Search Key Word
+
+    Returns
+    -------
+    DataFrame
+
+    """
+    PATH_SRC = "/home/green-machine/data_science"
+    DBNAME = "capital"
+    stmt = f"""
+    SELECT * FROM {DBNAME}
+    WHERE
+        prices LIKE '%{params[0]} constant prices%'
+        AND category = '{params[1]}'
+        AND lower(component) LIKE '%{params[-1]}%'
+    ;
+    """
+    database = Path(PATH_SRC).joinpath(f"{DBNAME}.db")
+    with sqlite3.connect(database) as conn:
+        cursor = conn.cursor()
+        df.to_sql(DBNAME, conn, if_exists="replace", index=True)
+        cursor = conn.execute(stmt)
+        return DataFrame(
+            cursor.fetchall(),
+            columns=("period", "prices", "category", "component",
+                     "series_id", "value")
+        )
+
+
+def transform_stockpile(df: DataFrame) -> DataFrame:
+    """
+
+
+    Parameters
+    ----------
+    df : DataFrame
+        ================== =================================
+        df.index           Period
+        df.iloc[:, 0]      Series IDs
+        df.iloc[:, 1]      Values
+        ================== =================================
+    name : str
+        New Column Name.
+
+    Returns
+    -------
+    DataFrame
+        ================== =================================
+        df.index           Period
+        df.iloc[:, 0]      Sum of <series_ids>
+        ================== =================================
+    """
+    return pd.concat(
+        map(
+            lambda _: df.pipe(pull_by_series_id, _),
+            sorted(set(df.iloc[:, 0]))
+        ),
+        axis=1
+    ).apply(pd.to_numeric, errors='coerce')
+
+
+def transform_sum(df: DataFrame, name: str) -> DataFrame:
+    """
+
+
+    Parameters
+    ----------
+    df : DataFrame
+        ================== =================================
+        df.index           Period
+        df.iloc[:, ...]    Series
+        ================== =================================
+    name : str
+        New Column Name.
+
+    Returns
+    -------
+    DataFrame
+        ================== =================================
+        df.index           Period
+        df.iloc[:, 0]      Sum of <series_ids>
+        ================== =================================
+    """
+    df[name] = df.sum(axis=1)
+    return df.iloc[:, [-1]]
+
+
+def transform_year_sum(df: DataFrame) -> DataFrame:
+    return df.groupby(df.index.year).sum()
+
+
 def combine_can(blueprint: dict) -> DataFrame:
     """
     Parameters
@@ -343,4 +515,87 @@ def get_blueprint_former(year_base: int = 2007) -> dict:
         # Manufacturing
         # =====================================================================
         'v65201809': 3790031,
+    }
+
+
+def archive_name_to_url(archive_name: str) -> str:
+    """
+    Parameters
+    ----------
+    archive_name : str
+        DESCRIPTION.
+    Returns
+    -------
+    str
+        DESCRIPTION.
+    """
+    return f'https://www150.statcan.gc.ca/n1/tbl/csv/{archive_name}'
+
+
+def stockpile_can(series_ids: dict[str, int]) -> DataFrame:
+    """
+    Parameters
+    ----------
+    series_ids : dict[str, int]
+        DESCRIPTION.
+    Returns
+    -------
+    DataFrame
+        ================== =================================
+        df.index           Period
+        ...                ...
+        df.iloc[:, -1]     Values
+        ================== =================================
+    """
+    return pd.concat(
+        map(
+            lambda _: read_can(_[-1]).pipe(pull_by_series_id, _[0]),
+            series_ids.items()
+        ),
+        axis=1,
+        sort=True
+    )
+
+
+def combine_can_special(
+    series_ids_plain: dict[str, int],
+    series_ids_mean: dict[str, int]
+) -> DataFrame:
+    if series_ids_plain:
+        return combine_can_plain_or_sum(series_ids_plain)
+    if series_ids_mean:
+        return combine_can_plain_or_sum(series_ids_mean).pipe(transform_year_mean)
+
+
+def filter_df(df: DataFrame) -> DataFrame:
+    FILTER = (
+        (df.loc[:, 'naics'] == 'All industries (x 1,000,000)') &
+        (df.loc[:, 'series_id'] != 'v65201756')
+    )
+    FILTER = (
+        (df.loc[:, 'naics'] == 'Manufacturing (x 1,000,000)') &
+        (df.loc[:, 'series_id'] != 'v65201809')
+    )
+    return df[FILTER].iloc[:, -2:]
+
+
+def get_kwargs_can() -> dict[str, Any]:
+
+    PATH_SRC = "/media/green-machine/KINGSTON"
+
+    ARCHIVE_ID = 3790031
+    NAMES = ['period', 'geo', 'seas', 'prices', 'naics', 'series_id', 'value']
+    USECOLS = [0, 1, 2, 3, 4, 5, 7]
+
+    TO_PARSE_DATES = (
+        2820011, 3790031, 3800084, 10100094, 14100221, 14100235, 14100238, 14100355, 16100109, 16100111, 36100108, 36100207, 36100434
+    )
+
+    return {
+        'filepath_or_buffer': Path(PATH_SRC).joinpath(f'dataset_can_{ARCHIVE_ID:08n}-eng.zip'),
+        'header': 0,
+        'names': NAMES,
+        'index_col': 0,
+        'usecols': USECOLS,
+        'parse_dates': ARCHIVE_ID in TO_PARSE_DATES
     }
