@@ -7,10 +7,9 @@ Created on Tue Nov  2 21:10:29 2021
 
 
 import os
-from pathlib import Path
 
 import pandas as pd
-from pandas import DataFrame
+from core.config import BASE_DIR, DATA_DIR
 
 from statcan.src.core.funcs import combine_can_special
 
@@ -21,7 +20,7 @@ from ..common.funcs import dichotomize_series_ids
 from .get_mean_for_min_std import get_mean_for_min_std
 
 
-def get_data_frame_index(series_ids: tuple[dict[str, int]]) -> DataFrame:
+def get_data_frame_index(series_ids: tuple[dict[str, int]]) -> pd.DataFrame:
     df = pd.concat(
         map(
             lambda _: combine_can_special(
@@ -47,7 +46,7 @@ def get_data_frame_index(series_ids: tuple[dict[str, int]]) -> DataFrame:
 def get_data_frame_value(
     series_ids_thousands: tuple[dict[str, int]],
     series_ids_persons: tuple[dict[str, int]]
-) -> DataFrame:
+) -> pd.DataFrame:
     df = pd.concat(
         [
             pd.concat(
@@ -76,9 +75,6 @@ def get_data_frame_value(
     return df.iloc[:, [-1]]
 
 
-PATH_SOURCE = '../../../data/external'
-PATH_EXPORT = '/home/green-machine/Downloads'
-
 TO_PARSE_DATES = (
     2820011, 3790031, 3800084, 10100094, 14100221, 14100235, 14100238, 14100355, 16100109, 16100111, 36100108, 36100207, 36100434
 )
@@ -95,17 +91,17 @@ SERIES_IDS = {
 }
 
 
-os.chdir(PATH_SOURCE)
+os.chdir(DATA_DIR)
 
 
-def main(path_export, SERIES_IDS_INDEXES, SERIES_IDS_THOUSANDS, SERIES_IDS_PERSONS):
+def main(SERIES_IDS_INDEXES, SERIES_IDS_THOUSANDS, SERIES_IDS_PERSONS):
     df_index = get_data_frame_index(SERIES_IDS_INDEXES)
 
     # =============================================================================
     # df_value = get_data_frame_value(SERIES_IDS_THOUSANDS, SERIES_IDS_PERSONS)
     # =============================================================================
 
-    df = DataFrame()
+    df = pd.DataFrame()
 
     year, value = get_mean_for_min_std(SERIES_IDS_THOUSANDS, TO_PARSE_DATES)
 
@@ -113,7 +109,7 @@ def main(path_export, SERIES_IDS_INDEXES, SERIES_IDS_THOUSANDS, SERIES_IDS_PERSO
 
     FILE_NAME = 'can_labour.pdf'
     kwargs = {
-        'fname': Path(path_export).joinpath(FILE_NAME),
+        'fname': BASE_DIR.joinpath(FILE_NAME),
         'format': 'pdf',
         'dpi': 900
     }
@@ -122,7 +118,6 @@ def main(path_export, SERIES_IDS_INDEXES, SERIES_IDS_THOUSANDS, SERIES_IDS_PERSO
 
 if __name__ == '__main__':
     main(
-        PATH_EXPORT,
         SERIES_IDS_INDEXES,
         SERIES_IDS_THOUSANDS,
         SERIES_IDS_PERSONS

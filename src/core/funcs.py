@@ -10,22 +10,22 @@ Created on Mon Aug  7 20:44:49 2023
 import io
 import re
 import sqlite3
+import zipfile
 from functools import cache
 from pathlib import Path
 from typing import Any
-from zipfile import ZipFile
 
 import pandas as pd
 import requests
-from pandas import DataFrame
+from core.config import DATA_DIR
+from stats.src.common.transform import transform_year_mean
 
 from statcan.src.core.constants import MAP_READ_CAN, MAP_READ_CAN_SPC
 from statcan.src.foreign.funcs import pull_by_series_id
-from stats.src.common.transform import transform_year_mean
 
 
 @cache
-def read_can(archive_id: int) -> DataFrame:
+def read_can(archive_id: int) -> pd.DataFrame:
     """
 
 
@@ -35,7 +35,7 @@ def read_can(archive_id: int) -> DataFrame:
 
     Returns
     -------
-    DataFrame
+    pd.DataFrame
         ================== =================================
         df.index           Period
         ...                ...
@@ -59,11 +59,11 @@ def read_can(archive_id: int) -> DataFrame:
         kwargs['filepath_or_buffer'] = f'{archive_id:08n}-eng.zip'
     else:
         if Path(f'{archive_id:08n}-eng.zip').is_file():
-            kwargs['filepath_or_buffer'] = ZipFile(
+            kwargs['filepath_or_buffer'] = zipfile.ZipFile(
                 f'{archive_id:08n}-eng.zip'
             ).open(f'{archive_id:08n}.csv')
         else:
-            kwargs['filepath_or_buffer'] = ZipFile(io.BytesIO(
+            kwargs['filepath_or_buffer'] = zipfile.ZipFile(io.BytesIO(
                 requests.get(url).content)
             ).open(f'{archive_id:08n}.csv')
             pass
@@ -71,14 +71,14 @@ def read_can(archive_id: int) -> DataFrame:
 
 
 @cache
-def read_can_sandbox(archive_id: int) -> DataFrame:
+def read_can_sandbox(archive_id: int) -> pd.DataFrame:
     """
     Parameters
     ----------
     archive_id : int
     Returns
     -------
-    DataFrame
+    pd.DataFrame
         ================== =================================
         df.index           Period
         ...                ...
@@ -135,18 +135,18 @@ def read_can_sandbox(archive_id: int) -> DataFrame:
         kwargs['filepath_or_buffer'] = f'{archive_id:08n}-eng.zip'
     else:
         if Path(f'{archive_id:08n}-eng.zip').is_file():
-            kwargs['filepath_or_buffer'] = ZipFile(
+            kwargs['filepath_or_buffer'] = zipfile.ZipFile(
                 f'{archive_id:08n}-eng.zip'
             ).open(f'{archive_id:08n}.csv')
         else:
-            kwargs['filepath_or_buffer'] = ZipFile(io.BytesIO(
+            kwargs['filepath_or_buffer'] = zipfile.ZipFile(io.BytesIO(
                 requests.get(url).content)
             ).open(f'{archive_id:08n}.csv')
     return pd.read_csv(**kwargs)
 
 
 @cache
-def read_can(archive_id: int) -> DataFrame:
+def read_can(archive_id: int) -> pd.DataFrame:
     """
 
 
@@ -156,7 +156,7 @@ def read_can(archive_id: int) -> DataFrame:
 
     Returns
     -------
-    DataFrame
+    pd.DataFrame
         ================== =================================
         df.index           Period
         ...                ...
@@ -180,18 +180,18 @@ def read_can(archive_id: int) -> DataFrame:
         kwargs['filepath_or_buffer'] = f'dataset_can_{archive_id:08n}-eng.zip'
     else:
         if Path(f'{archive_id:08n}-eng.zip').is_file():
-            kwargs['filepath_or_buffer'] = ZipFile(
+            kwargs['filepath_or_buffer'] = zipfile.ZipFile(
                 f'{archive_id:08n}-eng.zip'
             ).open(f'{archive_id:08n}.csv')
         else:
-            kwargs['filepath_or_buffer'] = ZipFile(
+            kwargs['filepath_or_buffer'] = zipfile.ZipFile(
                 io.BytesIO(requests.get(url).content)
             ).open(f'{archive_id:08n}.csv')
     return pd.read_csv(**kwargs)
 
 
 @cache
-def read_can(archive_id: int) -> DataFrame:
+def read_can(archive_id: int) -> pd.DataFrame:
     """
 
 
@@ -201,7 +201,7 @@ def read_can(archive_id: int) -> DataFrame:
 
     Returns
     -------
-    DataFrame
+    pd.DataFrame
         ================== =================================
         df.index           Period
         ...                ...
@@ -226,17 +226,17 @@ def read_can(archive_id: int) -> DataFrame:
         kwargs['filepath_or_buffer'] = f'dataset_can_{archive_id:08n}-eng.zip'
     else:
         if Path(f'{archive_id:08n}-eng.zip').is_file():
-            kwargs['filepath_or_buffer'] = ZipFile(
+            kwargs['filepath_or_buffer'] = zipfile.ZipFile(
                 f'{archive_id:08n}-eng.zip'
             ).open(f'{archive_id:08n}.csv')
         else:
-            kwargs['filepath_or_buffer'] = ZipFile(
+            kwargs['filepath_or_buffer'] = zipfile.ZipFile(
                 io.BytesIO(requests.get(url).content)
             ).open(f'{archive_id:08n}.csv')
     return pd.read_csv(**kwargs)
 
 
-def pull_can_capital(df: DataFrame) -> list[str]:
+def pull_can_capital(df: pd.DataFrame) -> list[str]:
     """
     Retrieves Series IDs from Statistics Canada -- Fixed Assets Tables
     """
@@ -262,14 +262,14 @@ def pull_can_capital(df: DataFrame) -> list[str]:
     return sorted(set(df[_filter].loc[:, "VECTOR"]))
 
 
-def pull_can_capital(df: DataFrame, params: tuple[int, str]) -> DataFrame:
+def pull_can_capital(df: pd.DataFrame, params: tuple[int, str]) -> pd.DataFrame:
     """
     WARNING: VERY EXPENSIVE OPERATION !
     Retrieves Series IDs from Statistics Canada -- Fixed Assets Tables
 
     Parameters
     ----------
-    df : DataFrame
+    df : pd.DataFrame
 
     params : tuple[int, str]
         param : YEAR_BASE : Basic Price Year.
@@ -278,10 +278,9 @@ def pull_can_capital(df: DataFrame, params: tuple[int, str]) -> DataFrame:
 
     Returns
     -------
-    DataFrame
+    pd.DataFrame
 
     """
-    PATH_SRC = "/home/green-machine/data_science"
     DBNAME = "capital"
     stmt = f"""
     SELECT * FROM {DBNAME}
@@ -293,25 +292,25 @@ def pull_can_capital(df: DataFrame, params: tuple[int, str]) -> DataFrame:
         AND component IN {params[-1]}
     ;
     """
-    database = Path(PATH_SRC).joinpath(f"{DBNAME}.db")
-    with sqlite3.connect(database) as conn:
+    db_path = DATA_DIR.joinpath(f"{DBNAME}.db")
+    with sqlite3.connect(db_path) as conn:
         cursor = conn.cursor()
         df.to_sql(DBNAME, conn, if_exists="replace", index=True)
         cursor = conn.execute(stmt)
-        return DataFrame(
+        return pd.DataFrame(
             cursor.fetchall(),
             columns=("period", "geo", "prices", "industry", "category",
-                     "component", "series_id", "value")
+                     "component", "series_id", 'value')
         )
 
 
-def pull_can_capital_former(df: DataFrame, params: tuple[int, str]) -> DataFrame:
+def pull_can_capital_former(df: pd.DataFrame, params: tuple[int, str]) -> pd.DataFrame:
     """
     Retrieves Series IDs from Statistics Canada -- Fixed Assets Tables
 
     Parameters
     ----------
-    df : DataFrame
+    df : pd.DataFrame
 
     params : tuple[int, str]
         param : YEAR_BASE : Basic Price Year.
@@ -320,10 +319,9 @@ def pull_can_capital_former(df: DataFrame, params: tuple[int, str]) -> DataFrame
 
     Returns
     -------
-    DataFrame
+    pd.DataFrame
 
     """
-    PATH_SRC = "/home/green-machine/data_science"
     DBNAME = "capital"
     stmt = f"""
     SELECT * FROM {DBNAME}
@@ -333,25 +331,25 @@ def pull_can_capital_former(df: DataFrame, params: tuple[int, str]) -> DataFrame
         AND lower(component) LIKE '%{params[-1]}%'
     ;
     """
-    database = Path(PATH_SRC).joinpath(f"{DBNAME}.db")
-    with sqlite3.connect(database) as conn:
+    db_path = DATA_DIR.joinpath(f"{DBNAME}.db")
+    with sqlite3.connect(db_path) as conn:
         cursor = conn.cursor()
         df.to_sql(DBNAME, conn, if_exists="replace", index=True)
         cursor = conn.execute(stmt)
-        return DataFrame(
+        return pd.DataFrame(
             cursor.fetchall(),
             columns=("period", "prices", "category", "component",
-                     "series_id", "value")
+                     "series_id", 'value')
         )
 
 
-def transform_stockpile(df: DataFrame) -> DataFrame:
+def transform_stockpile(df: pd.DataFrame) -> pd.DataFrame:
     """
 
 
     Parameters
     ----------
-    df : DataFrame
+    df : pd.DataFrame
         ================== =================================
         df.index           Period
         df.iloc[:, 0]      Series IDs
@@ -362,7 +360,7 @@ def transform_stockpile(df: DataFrame) -> DataFrame:
 
     Returns
     -------
-    DataFrame
+    pd.DataFrame
         ================== =================================
         df.index           Period
         df.iloc[:, 0]      Sum of <series_ids>
@@ -377,13 +375,13 @@ def transform_stockpile(df: DataFrame) -> DataFrame:
     ).apply(pd.to_numeric, errors='coerce')
 
 
-def transform_sum(df: DataFrame, name: str) -> DataFrame:
+def transform_sum(df: pd.DataFrame, name: str) -> pd.DataFrame:
     """
 
 
     Parameters
     ----------
-    df : DataFrame
+    df : pd.DataFrame
         ================== =================================
         df.index           Period
         df.iloc[:, ...]    Series
@@ -393,7 +391,7 @@ def transform_sum(df: DataFrame, name: str) -> DataFrame:
 
     Returns
     -------
-    DataFrame
+    pd.DataFrame
         ================== =================================
         df.index           Period
         df.iloc[:, 0]      Sum of <series_ids>
@@ -403,11 +401,11 @@ def transform_sum(df: DataFrame, name: str) -> DataFrame:
     return df.iloc[:, [-1]]
 
 
-def transform_year_sum(df: DataFrame) -> DataFrame:
+def transform_year_sum(df: pd.DataFrame) -> pd.DataFrame:
     return df.groupby(df.index.year).sum()
 
 
-def combine_can(blueprint: dict) -> DataFrame:
+def combine_can(blueprint: dict) -> pd.DataFrame:
     """
     Parameters
     ----------
@@ -415,7 +413,7 @@ def combine_can(blueprint: dict) -> DataFrame:
         DESCRIPTION.
     Returns
     -------
-    DataFrame
+    pd.DataFrame
         ================== =================================
         df.index           Period
         df.iloc[:, 0]      Capital
@@ -423,11 +421,10 @@ def combine_can(blueprint: dict) -> DataFrame:
         df.iloc[:, 2]      Product
         ================== =================================
     """
-    PATH_SRC = '/media/green-machine/KINGSTON'
     kwargs = {
-        'filepath_or_buffer': Path(PATH_SRC).joinpath(f'{tuple(blueprint)[0]}_preloaded.csv'),
+        'filepath_or_buffer': DATA_DIR.joinpath(f'{tuple(blueprint)[0]}_preloaded.csv'),
     }
-    if Path(PATH_SRC).joinpath(f'{tuple(blueprint)[0]}_preloaded.csv').is_file():
+    if DATA_DIR.joinpath(f'{tuple(blueprint)[0]}_preloaded.csv').is_file():
         kwargs['index_col'] = 0
         _df = pd.read_csv(**kwargs)
     else:
@@ -532,7 +529,7 @@ def archive_name_to_url(archive_name: str) -> str:
     return f'https://www150.statcan.gc.ca/n1/tbl/csv/{archive_name}'
 
 
-def stockpile_can(series_ids: dict[str, int]) -> DataFrame:
+def stockpile_can(series_ids: dict[str, int]) -> pd.DataFrame:
     """
     Parameters
     ----------
@@ -540,7 +537,7 @@ def stockpile_can(series_ids: dict[str, int]) -> DataFrame:
         DESCRIPTION.
     Returns
     -------
-    DataFrame
+    pd.DataFrame
         ================== =================================
         df.index           Period
         ...                ...
@@ -560,14 +557,14 @@ def stockpile_can(series_ids: dict[str, int]) -> DataFrame:
 def combine_can_special(
     series_ids_plain: dict[str, int],
     series_ids_mean: dict[str, int]
-) -> DataFrame:
+) -> pd.DataFrame:
     if series_ids_plain:
         return combine_can_plain_or_sum(series_ids_plain)
     if series_ids_mean:
         return combine_can_plain_or_sum(series_ids_mean).pipe(transform_year_mean)
 
 
-def filter_df(df: DataFrame) -> DataFrame:
+def filter_df(df: pd.DataFrame) -> pd.DataFrame:
     FILTER = (
         (df.loc[:, 'naics'] == 'All industries (x 1,000,000)') &
         (df.loc[:, 'series_id'] != 'v65201756')
@@ -581,8 +578,6 @@ def filter_df(df: DataFrame) -> DataFrame:
 
 def get_kwargs_can() -> dict[str, Any]:
 
-    PATH_SRC = "/media/green-machine/KINGSTON"
-
     ARCHIVE_ID = 3790031
     NAMES = ['period', 'geo', 'seas', 'prices', 'naics', 'series_id', 'value']
     USECOLS = [0, 1, 2, 3, 4, 5, 7]
@@ -592,7 +587,7 @@ def get_kwargs_can() -> dict[str, Any]:
     )
 
     return {
-        'filepath_or_buffer': Path(PATH_SRC).joinpath(f'dataset_can_{ARCHIVE_ID:08n}-eng.zip'),
+        'filepath_or_buffer': DATA_DIR.joinpath(f'dataset_can_{ARCHIVE_ID:08n}-eng.zip'),
         'header': 0,
         'names': NAMES,
         'index_col': 0,

@@ -1,14 +1,13 @@
 from itertools import combinations
 
 import pandas as pd
-from pandas import DataFrame
 
 from statcan.src.core.funcs import archive_name_to_url, read_can
 
 
 def build_push_data_frame(path_or_buf: str, blueprint: dict) -> None:
     """
-    Builds DataFrame & Loads It To CSV
+    Builds pd.DataFrame & Loads It To CSV
     Parameters
     ----------
     path_or_buf : str
@@ -23,7 +22,7 @@ def build_push_data_frame(path_or_buf: str, blueprint: dict) -> None:
     # TODO: Re-Write
     # =========================================================================
 
-    df = DataFrame()
+    df = pd.DataFrame()
     for entry in blueprint:
         _df = read_can(archive_name_to_url(entry['archive_name']))
         _df = _df[_df['VECTOR'].isin(entry['series_ids'])]

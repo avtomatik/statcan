@@ -8,10 +8,9 @@ Created on Sun Mar 26 16:01:08 2023
 
 
 import pandas as pd
-from pandas import DataFrame
 
 
-def read_can_groupby(file_id: int) -> DataFrame:
+def read_can_groupby(file_id: int) -> pd.DataFrame:
     """
 
 
@@ -22,7 +21,7 @@ def read_can_groupby(file_id: int) -> DataFrame:
 
     Returns
     -------
-    DataFrame
+    pd.DataFrame
         DESCRIPTION.
 
     """

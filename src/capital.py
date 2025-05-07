@@ -9,7 +9,7 @@ Created on Tue Nov  2 21:10:29 2021
 import os
 
 import pandas as pd
-from pandas import DataFrame
+from core.config import BASE_DIR
 
 from statcan.src.core.constants import BLUEPRINT_CAPITAL
 
@@ -22,11 +22,11 @@ from statcan.src.core.constants import BLUEPRINT_CAPITAL
 # =============================================================================
 
 
-def transform_year_mean(df: DataFrame) -> DataFrame:
+def transform_year_mean(df: pd.DataFrame) -> pd.DataFrame:
     return df.groupby(df.index.year).mean()
 
 
-def combine_can_plain_or_sum(series_ids: dict[str, int]) -> DataFrame:
+def combine_can_plain_or_sum(series_ids: dict[str, int]) -> pd.DataFrame:
     if len(series_ids) > 1:
         return stockpile_can(series_ids).pipe(
             transform_sum,
@@ -38,7 +38,7 @@ def combine_can_plain_or_sum(series_ids: dict[str, int]) -> DataFrame:
 def combine_can_special(
     series_ids_plain: dict[str, int],
     series_ids_mean: dict[str, int]
-) -> DataFrame:
+) -> pd.DataFrame:
     if series_ids_plain:
         return combine_can_plain_or_sum(series_ids_plain)
     if series_ids_mean:
@@ -75,10 +75,7 @@ TO_PARSE_DATES = (
     2820011, 3790031, 3800084, 10100094, 14100221, 14100235, 14100238, 14100355, 16100109, 16100111, 36100108, 36100207, 36100434
 )
 
-PATH_SOURCE = '../../../data/external'
-
-
-os.chdir(PATH_SOURCE)
+os.chdir(BASE_DIR)
 
 # =============================================================================
 # Product
@@ -153,11 +150,10 @@ df = stockpile_can(SERIES_IDS)
 df['mean'] = df.mean(axis=1)
 df.plot(grid=True)
 df = df.iloc[:, [-1]]
-
 # =============================================================================
 # FILE_NAME = 'data_composed.csv'
 # kwargs = {
-#     'path_or_buf': Path(PATH_EXPORT).joinpath(FILE_NAME)
+#     'path_or_buf': BASE_DIR.joinpath(FILE_NAME)
 # }
 # df.to_csv(**kwargs)
 # =============================================================================
@@ -192,7 +188,7 @@ df = stockpile_can(SERIES_IDS)
 # =============================================================================
 # FILE_NAME = 'data_composed.csv'
 # kwargs = {
-#     'path_or_buf': Path(PATH_EXPORT).joinpath(FILE_NAME)
+#     'path_or_buf': BASE_DIR.joinpath(FILE_NAME)
 # }
 # df.to_csv(**kwargs)
 # =============================================================================

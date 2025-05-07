@@ -8,17 +8,17 @@ Created on Mon Aug  7 22:06:23 2023
 
 
 import numpy as np
+import pandas as pd
 from matplotlib import pyplot as plt
-from pandas import DataFrame
 
 
-def plot_cobb_douglas_3d(df: DataFrame) -> None:
+def plot_cobb_douglas_3d(df: pd.DataFrame) -> None:
     """
     Cobb--Douglas 3D-Plotting
 
     Parameters
     ----------
-    df : DataFrame
+    df : pd.DataFrame
         ================== =================================
         df.index           Period
         df.iloc[:, 0]      Capital
@@ -41,7 +41,7 @@ def plot_cobb_douglas_3d(df: DataFrame) -> None:
     plt.show()
 
 
-def transform_cobb_douglas(df: DataFrame, year_base: int) -> tuple[DataFrame, tuple[float]]:
+def transform_cobb_douglas(df: pd.DataFrame, year_base: int) -> tuple[pd.DataFrame, tuple[float]]:
     """
         ================== =================================
         df.index           Period
@@ -107,13 +107,13 @@ def transform_cobb_douglas(df: DataFrame, year_base: int) -> tuple[DataFrame, tu
     return df, (k, np.exp(b))
 
 
-def pull_by_series_id(df: DataFrame, series_id: str) -> DataFrame:
+def pull_by_series_id(df: pd.DataFrame, series_id: str) -> pd.DataFrame:
     """
 
 
     Parameters
     ----------
-    df : DataFrame
+    df : pd.DataFrame
         ================== =================================
         df.index           Period
         df.iloc[:, 0]      Series IDs
@@ -123,7 +123,7 @@ def pull_by_series_id(df: DataFrame, series_id: str) -> DataFrame:
 
     Returns
     -------
-    DataFrame
+    pd.DataFrame
         ================== =================================
         df.index           Period
         df.iloc[:, 0]      Series
@@ -131,5 +131,5 @@ def pull_by_series_id(df: DataFrame, series_id: str) -> DataFrame:
     """
     assert df.shape[1] == 2
     return df[df.iloc[:, 0] == series_id].iloc[:, [1]].rename(
-        columns={"value": series_id}
+        columns={'value': series_id}
     )
