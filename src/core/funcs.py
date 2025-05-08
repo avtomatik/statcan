@@ -421,8 +421,9 @@ def combine_can(blueprint: dict) -> pd.DataFrame:
         df.iloc[:, 2]      Product
         ================== =================================
     """
+    FILE_NAME = f'{tuple(blueprint)[0]}_preloaded.csv'
     kwargs = {
-        'filepath_or_buffer': DATA_DIR.joinpath(f'{tuple(blueprint)[0]}_preloaded.csv'),
+        'filepath_or_buffer': DATA_DIR.joinpath(FILE_NAME),
     }
     if DATA_DIR.joinpath(f'{tuple(blueprint)[0]}_preloaded.csv').is_file():
         kwargs['index_col'] = 0
@@ -586,8 +587,9 @@ def get_kwargs_can() -> dict[str, Any]:
         2820011, 3790031, 3800084, 10100094, 14100221, 14100235, 14100238, 14100355, 16100109, 16100111, 36100108, 36100207, 36100434
     )
 
+    FILE_NAME = f'dataset_can_{ARCHIVE_ID:08n}-eng.zip'
     return {
-        'filepath_or_buffer': DATA_DIR.joinpath(f'dataset_can_{ARCHIVE_ID:08n}-eng.zip'),
+        'filepath_or_buffer': DATA_DIR.joinpath(FILE_NAME),
         'header': 0,
         'names': NAMES,
         'index_col': 0,
